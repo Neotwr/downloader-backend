@@ -1,8 +1,6 @@
 require('dotenv').config();
 
-const requiredEnvVars = ['OWNER', 'REPO', 'TOKEN', 'FRONTEND_URL', 'SECRET', 'PORT'];
-
-// Função que valida cada variavel da .env de forma explícita
+// Validação explícita de cada variável da .env
 function validateEnvVars() {
   if (!process.env.OWNER || process.env.OWNER.trim() === '') {
     console.error('Variável de ambiente vazia ou faltando: OWNER');
