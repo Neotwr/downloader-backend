@@ -41,6 +41,6 @@ app.use(express.json({
 
 require('./routes/trigger')(app, octokit, env, triggerLimiter, verificarCORS);
 require('./routes/webhook')(app, octokit, env, notifyClient, pendingRuns, verifySignature);
-require('./routes/artifact')(app, octokit, env, verificarCORS, downloadLimiter);
+require('./routes/artifact')(app, octokit, env, downloadLimiter, verificarCORS);
 
 server.listen(env.PORT, () => console.log(`🌍 Backend rodando na porta ${env.PORT}`));
