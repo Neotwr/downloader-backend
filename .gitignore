@@ -1,0 +1,20 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente / segredos (Crítico para segurança!)
+.env
+
+# Configurações locais de editor (VS Code)
+.vscode/
+
+# Logs e arquivos de debug do npm/yarn
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Arquivos temporários do sistema operacional
+.DS_Store
+Thumbs.db
+Desktop.ini
