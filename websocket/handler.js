@@ -39,7 +39,14 @@ module.exports = (wss) => {
       }
     }, 30000);
 
+    ws.on("error", () => {
+      clearInterval(heartbeat);
+      pendingRuns.delete(runId);
+      console.log(`⚠️ Erro na conexão (run ${runId})`);
+    });
+
     ws.on("close", () => {
+      clearInterval(heartbeat);
       pendingRuns.delete(runId);
       console.log(`🔌 Cliente desconectado (run ${runId})`);
     });
