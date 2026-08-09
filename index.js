@@ -28,9 +28,8 @@ const octokit = new Octokit({
 
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
-const timeouts = new Map();
 
-const { pendingRuns, notifyClient } = require('./websocket/handler')(wss, timeouts);
+const { pendingRuns, notifyClient } = require('./websocket/handler')(wss);
 
 app.use(express.json({
   limit: '200kb',
