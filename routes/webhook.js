@@ -27,7 +27,9 @@ module.exports = (
       !data.workflow_run ||
       data.workflow_run.repository?.full_name !== `${env.OWNER}/${env.REPO}`
     ) {
-      console.log("📥 Webhook descartado (action/repositório não correspondem).");
+      console.log(
+        "📥 Webhook descartado (action/repositório não correspondem).",
+      );
       return;
     }
 
