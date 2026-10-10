@@ -41,13 +41,40 @@ module.exports = (
 
         const artifact = artifacts[0];
 
-        // downloadArtifact retorna um redirect — pegamos a URL final
-        const { url } = await octokit.actions.downloadArtifact({
-          owner: env.OWNER,
-          repo: env.REPO,
-          artifact_id: artifact.id,
-          archive_format: "zip",
-        });
+        if (!artifact?.id || !artifact.archive_download_url) {
+          res.status(404).send("Artefato inválido.");
+          return;
+        }
+
+        // Obtém apenas a URL pré-assinada do artefato, sem seguir o redirect
+        // (downloadArtifact baixava o arquivo inteiro em memória).
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        let downloadRes;
+        try {
+          downloadRes = await fetch(artifact.archive_download_url, {
+            headers: {
+              Authorization: `token ${env.TOKEN}`,
+              Accept: "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+            },
+            redirect: "manual",
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timeout);
+        }
+
+        if (downloadRes.status !== 302) {
+          res.status(502).send("Falha ao obter o link do artefato.");
+          return;
+        }
+
+        const url = downloadRes.headers.get("location");
+        if (!url) {
+          res.status(502).send("Falha ao obter o link do artefato.");
+          return;
+        }
 
         console.log(`🔗 Link gerado, enviando para o frontend..`);
         res.status(200).json({ url });
