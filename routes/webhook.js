@@ -47,6 +47,7 @@ module.exports = (
     }
 
     try {
+      console.log(`[Webhook] Buscando artefatos — Run ID: ${runId}`);
       const {
         data: { artifacts },
       } = await octokit.actions.listWorkflowRunArtifacts({
@@ -55,7 +56,11 @@ module.exports = (
         run_id: runId,
       });
 
-      if (artifacts.length === 0) {
+      console.log(
+        `[Webhook] Resposta de artefatos recebida — Run ID: ${runId} — quantidade: ${artifacts?.length ?? 0}`,
+      );
+
+      if (!Array.isArray(artifacts) || artifacts.length === 0) {
         notifyClient(runId, {
           type: "error",
           message: "Nenhum artefato encontrado.",
@@ -66,7 +71,22 @@ module.exports = (
 
       const artifact = artifacts[0];
 
+      if (!artifact?.id) {
+        console.error(`[Webhook] Artefato inválido — Run ID: ${runId}`);
+        notifyClient(runId, {
+          type: "error",
+          message: "Artefato inválido recebido.",
+        });
+        pendingRuns.delete(runId);
+        return;
+      }
+
+      console.log(
+        `[Webhook] Artefato selecionado — Run ID: ${runId} — ID: ${artifact.id} — nome: ${artifact.name}`,
+      );
+
       // downloadArtifact retorna um redirect — pegamos a URL final
+      console.log(`[Webhook] Solicitando download — Run ID: ${runId}`);
       const { url } = await octokit.actions.downloadArtifact({
         owner: env.OWNER,
         repo: env.REPO,
@@ -74,7 +94,13 @@ module.exports = (
         archive_format: "zip",
       });
 
-      console.log(`🔗 Link gerado - Run ID: ${runId}`);
+      if (!url) {
+        throw new Error("A API não retornou a URL do artefato");
+      }
+
+      console.log(
+        `🔗 Link gerado - Run ID: ${runId} — URL retornada: ${url.slice(0, 120)}...`,
+      );
 
       notifyClient(runId, {
         type: "done",
@@ -84,7 +110,12 @@ module.exports = (
 
       pendingRuns.delete(runId);
     } catch (err) {
-      console.error("Erro ao buscar artefato: ", err);
+      console.error(`[Webhook] Erro ao buscar artefato — Run ID: ${runId}`, {
+        name: err?.name,
+        message: err?.message,
+        status: err?.status,
+        stack: err?.stack,
+      });
       notifyClient(runId, {
         type: "error",
         message: "Erro ao buscar o artefato.",
