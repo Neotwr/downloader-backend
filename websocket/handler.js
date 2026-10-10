@@ -113,13 +113,34 @@ module.exports = (wss, octokit, env) => {
       );
 
       console.log(`[Run] Solicitando download — Run ID: ${runId}`);
-      const { url } = await octokit.actions.downloadArtifact({
-        owner: env.OWNER,
-        repo: env.REPO,
-        artifact_id: artifact.id,
-        archive_format: "zip",
-      });
 
+      // Obtém apenas a URL pré-assinada do artefato, sem seguir o redirect.
+      // (downloadArtifact seguia o redirect e baixava o arquivo inteiro em
+      // memória, travando o servidor com artefatos grandes.)
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      let downloadRes;
+      try {
+        downloadRes = await fetch(artifact.archive_download_url, {
+          headers: {
+            Authorization: `token ${env.TOKEN}`,
+            Accept: "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+          },
+          redirect: "manual",
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      if (downloadRes.status !== 302) {
+        throw new Error(
+          `Falha ao obter URL do artefato (status ${downloadRes.status})`,
+        );
+      }
+
+      const url = downloadRes.headers.get("location");
       if (!url) {
         throw new Error("A API não retornou a URL do artefato");
       }
