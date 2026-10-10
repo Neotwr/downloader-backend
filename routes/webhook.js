@@ -4,11 +4,11 @@
 
 module.exports = (
   app,
-  octokit,
   env,
-  notifyClient,
-  pendingRuns,
   verifySignature,
+  hasPendingRun,
+  cacheRunResult,
+  processCompletedRun,
 ) => {
   app.post("/webhook", async (req, res) => {
     if (!verifySignature(req)) {
@@ -21,106 +21,36 @@ module.exports = (
 
     const data = req.body;
 
-    if (data.action !== "completed" || !data.workflow_run) return;
-
-    const runId = String(data.workflow_run.id);
-    const conclusion = data.workflow_run.conclusion;
-
-    console.log(`🔔 Webhook recebido — Run ${runId} — ${conclusion}`);
-
-    // Notifica o cliente sobre o status
-    notifyClient(runId, {
-      type: "status",
-      message:
-        conclusion === "success"
-          ? "Buscando artefato..."
-          : "Workflow finalizado com erro.",
-    });
-
-    if (conclusion !== "success") {
-      notifyClient(runId, {
-        type: "error",
-        message: `O workflow falhou com status: ${conclusion}`,
-      });
-      pendingRuns.delete(runId);
+    // Triagem: só processa eventos "completed" de runs do nosso repositório
+    if (
+      data.action !== "completed" ||
+      !data.workflow_run ||
+      data.workflow_run.repository?.full_name !== `${env.OWNER}/${env.REPO}`
+    ) {
+      console.log("📥 Webhook descartado (action/repositório não correspondem).");
       return;
     }
 
-    try {
-      console.log(`[Webhook] Buscando artefatos — Run ID: ${runId}`);
-      const {
-        data: { artifacts },
-      } = await octokit.actions.listWorkflowRunArtifacts({
-        owner: env.OWNER,
-        repo: env.REPO,
-        run_id: runId,
-      });
+    const rawRunId = data.workflow_run.id;
+    if (!rawRunId || !/^\d+$/.test(String(rawRunId))) {
+      console.log("📥 Webhook descartado (run id inválido).");
+      return;
+    }
 
-      console.log(
-        `[Webhook] Resposta de artefatos recebida — Run ID: ${runId} — quantidade: ${artifacts?.length ?? 0}`,
+    const runId = String(rawRunId);
+    const conclusion = data.workflow_run.conclusion;
+
+    // Triagem por runId: só busca artefato se houver cliente aguardando;
+    // senão, guarda o marcador para um cliente que conectar depois.
+    if (hasPendingRun(runId)) {
+      processCompletedRun(runId, conclusion).catch((err) =>
+        console.error(`❌ Erro ao processar run ${runId}:`, err),
       );
-
-      if (!Array.isArray(artifacts) || artifacts.length === 0) {
-        notifyClient(runId, {
-          type: "error",
-          message: "Nenhum artefato encontrado.",
-        });
-        pendingRuns.delete(runId);
-        return;
-      }
-
-      const artifact = artifacts[0];
-
-      if (!artifact?.id) {
-        console.error(`[Webhook] Artefato inválido — Run ID: ${runId}`);
-        notifyClient(runId, {
-          type: "error",
-          message: "Artefato inválido recebido.",
-        });
-        pendingRuns.delete(runId);
-        return;
-      }
-
+    } else {
       console.log(
-        `[Webhook] Artefato selecionado — Run ID: ${runId} — ID: ${artifact.id} — nome: ${artifact.name}`,
+        `📥 Webhook para run ${runId} sem cliente aguardando — armazenado no cache.`,
       );
-
-      // downloadArtifact retorna um redirect — pegamos a URL final
-      console.log(`[Webhook] Solicitando download — Run ID: ${runId}`);
-      const { url } = await octokit.actions.downloadArtifact({
-        owner: env.OWNER,
-        repo: env.REPO,
-        artifact_id: artifact.id,
-        archive_format: "zip",
-      });
-
-      if (!url) {
-        throw new Error("A API não retornou a URL do artefato");
-      }
-
-      console.log(
-        `🔗 Link gerado - Run ID: ${runId} — URL retornada: ${url.slice(0, 120)}...`,
-      );
-
-      notifyClient(runId, {
-        type: "done",
-        downloadUrl: url,
-        filename: artifact.name,
-      });
-
-      pendingRuns.delete(runId);
-    } catch (err) {
-      console.error(`[Webhook] Erro ao buscar artefato — Run ID: ${runId}`, {
-        name: err?.name,
-        message: err?.message,
-        status: err?.status,
-        stack: err?.stack,
-      });
-      notifyClient(runId, {
-        type: "error",
-        message: "Erro ao buscar o artefato.",
-      });
-      pendingRuns.delete(runId);
+      cacheRunResult(runId, { type: "run-completed", conclusion });
     }
   });
 };

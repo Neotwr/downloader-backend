@@ -29,7 +29,11 @@ const octokit = new Octokit({
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-const { pendingRuns, notifyClient } = require('./websocket/handler')(wss);
+const {
+  hasPendingRun,
+  cacheRunResult,
+  processCompletedRun,
+} = require('./websocket/handler')(wss, octokit, env);
 
 app.use(express.json({
   limit: '200kb',
@@ -39,7 +43,7 @@ app.use(express.json({
 }));
 
 require('./routes/trigger')(app, octokit, env, triggerLimiter, verificarCORS);
-require('./routes/webhook')(app, octokit, env, notifyClient, pendingRuns, verifySignature);
+require('./routes/webhook')(app, env, verifySignature, hasPendingRun, cacheRunResult, processCompletedRun);
 require('./routes/artifact')(app, octokit, env, downloadLimiter, verificarCORS);
 
 server.listen(env.PORT, () => console.log(`🌍 Backend rodando na porta ${env.PORT}`));
