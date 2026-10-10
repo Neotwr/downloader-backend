@@ -7,7 +7,7 @@ const HEARTBEAT_SWEEP_INTERVAL = 10_000; // varredura global a cada 10s
 const CONNECTION_STALE_TIMEOUT = 30_000; // sem heartbeat por 30s -> encerra
 const RESULT_CACHE_TTL = 5 * 60 * 1000; // resultado guardado por 5 min
 
-module.exports = (wss, octokit, env) => {
+export default (wss, octokit, env) => {
   const pendingRuns = new Map(); // runId -> ws (cliente aguardando)
   const runResults = new Map(); // runId -> { payload, createdAt }
 

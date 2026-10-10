@@ -1,5 +1,5 @@
 // middleware
-const env = require('../config/env');
+import env from '../config/env.js';
 
 function verificarCORS(req, res, next) {
   const origin = req.get('origin');
@@ -19,4 +19,4 @@ function verificarCORS(req, res, next) {
   return next();
 }
 
-module.exports = verificarCORS;
+export default verificarCORS;

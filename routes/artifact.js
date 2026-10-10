@@ -1,7 +1,7 @@
 // ------------------------------------------------------------------
 // GET /artifact/:runId — pegar o link de download direto
 // ------------------------------------------------------------------
-module.exports = (
+export default (
   app,
   octokit,
   env,

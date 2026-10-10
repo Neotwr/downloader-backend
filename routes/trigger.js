@@ -4,7 +4,7 @@ const MAX_LENGTH = 250;
 // ------------------------------------------------------------------
 // POST /trigger — dispara o workflow e retorna o runId
 // ------------------------------------------------------------------
-module.exports = (
+export default (
   app,
   octokit,
   env,

@@ -1,4 +1,6 @@
-require('dotenv').config();
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Validação explícita de cada variável da .env
 function validateEnvVars() {
@@ -38,7 +40,7 @@ function validateEnvVars() {
 
 validateEnvVars();
 
-module.exports = {
+export default {
   OWNER: process.env.OWNER,
   REPO: process.env.REPO,
   TOKEN: process.env.TOKEN,

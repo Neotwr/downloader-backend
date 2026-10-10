@@ -1,4 +1,4 @@
-const rateLimit = require("express-rate-limit");
+import { rateLimit } from "express-rate-limit";
 
 function handleRateLimitViolation(req, res) {
   console.warn(
@@ -27,7 +27,7 @@ function createLimiter(
 const triggerLimiter = createLimiter();
 const downloadLimiter = createLimiter({ max: 15 }); // Mais permissivo para downloads (15 em 1 hora)
 
-module.exports = {
+export {
   triggerLimiter,
   downloadLimiter,
 };

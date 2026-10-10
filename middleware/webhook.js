@@ -1,5 +1,5 @@
-const crypto = require("crypto");
-const env = require("../config/env");
+import crypto from "node:crypto";
+import env from "../config/env.js";
 
 // ------------------------------------------------------------------
 // Verifica assinatura do webhook do GitHub
@@ -23,4 +23,4 @@ function verifySignature(req) {
   return crypto.timingSafeEqual(digest, checksum);
 }
 
-module.exports = verifySignature;
+export default verifySignature;

@@ -2,7 +2,7 @@
 // POST /webhook — recebe notificação do GitHub quando o run termina
 // ------------------------------------------------------------------
 
-module.exports = (
+export default (
   app,
   env,
   verifySignature,

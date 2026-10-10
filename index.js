@@ -1,13 +1,17 @@
-const { Octokit } = require("@octokit/rest");
-const { WebSocketServer } = require("ws");
-const express = require("express");
-const http = require("http");
-const helmet = require("helmet");
+import { Octokit } from "@octokit/rest";
+import { WebSocketServer } from "ws";
+import express from "express";
+import http from "node:http";
+import helmet from "helmet";
 
-const { triggerLimiter, downloadLimiter } = require("./middleware/rateLimiter");
-const verificarCORS = require("./middleware/cors");
-const verifySignature = require("./middleware/webhook");
-const env = require("./config/env");
+import { triggerLimiter, downloadLimiter } from "./middleware/rateLimiter.js";
+import verificarCORS from "./middleware/cors.js";
+import verifySignature from "./middleware/webhook.js";
+import env from "./config/env.js";
+import initializeWebSocket from "./websocket/handler.js";
+import registerTriggerRoutes from "./routes/trigger.js";
+import registerWebhookRoutes from "./routes/webhook.js";
+import registerArtifactRoutes from "./routes/artifact.js";
 
 const app = express();
 app.use(helmet());
@@ -30,7 +34,7 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
 const { hasPendingRun, cacheRunResult, processCompletedRun } =
-  require("./websocket/handler")(wss, octokit, env);
+  initializeWebSocket(wss, octokit, env);
 
 app.use(
   express.json({
@@ -41,8 +45,8 @@ app.use(
   }),
 );
 
-require("./routes/trigger")(app, octokit, env, triggerLimiter, verificarCORS);
-require("./routes/webhook")(
+registerTriggerRoutes(app, octokit, env, triggerLimiter, verificarCORS);
+registerWebhookRoutes(
   app,
   env,
   verifySignature,
@@ -50,7 +54,7 @@ require("./routes/webhook")(
   cacheRunResult,
   processCompletedRun,
 );
-require("./routes/artifact")(app, octokit, env, downloadLimiter, verificarCORS);
+registerArtifactRoutes(app, octokit, env, downloadLimiter, verificarCORS);
 
 server.listen(env.PORT, () =>
   console.log(`🌍 Backend rodando na porta ${env.PORT}`),
