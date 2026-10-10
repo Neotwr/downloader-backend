@@ -13,6 +13,10 @@ function verifySignature(req) {
   const hmac = crypto.createHmac('sha256', env.SECRET);
   const digest = Buffer.from('sha256=' + hmac.update(req.rawBody).digest('hex'), 'utf8');
   const checksum = Buffer.from(signature, 'utf8');
+
+  // timingSafeEqual lança RangeError se os buffers tiverem tamanhos diferentes
+  if (digest.length !== checksum.length) return false;
+
   return crypto.timingSafeEqual(digest, checksum);
 }
 
