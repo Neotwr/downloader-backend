@@ -4,6 +4,33 @@ import envs from '../config/env.js';
 // limite máximo de caracteres dos inputs do workflow
 const MAX_LENGTH = 250;
 
+// validação e normalização do workflowId
+const workflowIds = {
+  URLDownload: envs.WORKFLOW_URLDOWNLOAD,
+  PyDownload: envs.WORKFLOW_PYDOWNLOAD,
+} as const;
+
+type ValidatedWorkflowIdResult =
+  | { isValid: false; message: string }
+  | { isValid: true; data: string };
+
+type WorkflowName = keyof typeof workflowIds;
+
+function getWorkflowId(name: string): ValidatedWorkflowIdResult {
+  if (!(name in workflowIds)) {
+    return { isValid: false, message: `Workflow inválido ${name}.` };
+  }
+
+  const workflowId = workflowIds[name as WorkflowName];
+
+  if (!workflowId) {
+    return { isValid: false, message: `ID não configurado para o workflow: ${name}` };
+  }
+
+  return { isValid: true, data: workflowId };
+}
+
+// validações do body da requisição
 interface BodyInputs {
   id: string;
   inputs: Record<string, string>;
@@ -25,10 +52,6 @@ function validateBody(data: unknown): ValidatedBodyResult {
 
   if (!data.id || typeof data.id !== "string") {
     return { isValid: false, message: 'O campo "id" é obrigatório e deve ser uma string.' };
-  }
-
-  if (data.id !== envs.WORKFLOW_URLDOWNLOAD && data.id !== envs.WORKFLOW_PYDOWNLOAD) {
-    return { isValid: false, message: 'Workflow não encontrado.' };
   }
 
   if (!isRecord(data.inputs)) {
@@ -66,12 +89,20 @@ export default (
     const body = req.body;
 
     const validationResult = validateBody(body);
-    
+
     if (!validationResult.isValid) {
       return res.status(400).json({ message: validationResult.message });
     }
 
-    const workflowId = validationResult.data.id;
+    const workflowName = validationResult.data.id;
+    const workflowIdResult = getWorkflowId(workflowName);
+
+    if (!workflowIdResult.isValid) {
+      return res.status(400).json({ message: workflowIdResult.message });
+    }
+
+    const workflowId = workflowIdResult.data;
+
     const inputs = validationResult.data.inputs;
 
     try {
