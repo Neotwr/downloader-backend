@@ -1,4 +1,4 @@
-import type { Express} from "express";
+import type { Express } from "express";
 import type initializeWebSocket from "../websocket/handler.js";
 type VerifySignature = typeof import("../middleware/webhook.js").default;
 type Env = typeof import("../config/env.js").default;
@@ -41,7 +41,8 @@ export default (
     }
 
     if (data.action !== "completed") {
-      console.log("📥 Webhook descartado (action ausente, inválida ou não é 'completed').");
+      // console.log("📥 Webhook descartado (action ausente, inválida ou não é 'completed').");
+      // return silencioso, não precisamos encher o log com eventos que não nos interessam
       return;
     }
 

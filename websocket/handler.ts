@@ -8,7 +8,7 @@ type Completed = { type: "run-completed"; conclusion: string };
 type RunStatus = WorkflowMessage | Completed;
 
 interface TrackedWebSocket extends WebSocket {
-    lastSeen: number;
+  lastSeen: number;
 }
 
 // ------------------------------------------------------------------
@@ -161,7 +161,7 @@ export default (wss: WebSocketServer, octokit: Octokit, env: Env) => {
       }
 
       console.log(
-        `🔗 Link gerado - Run ID: ${runId} — URL retornada: ${url.slice(0, 120)}...`,
+        `🔗 Link gerado - Run ID: ${runId} — URL retornada: ${url.slice(0, 25)}...`,
       );
 
       notifyClient(runId, {
@@ -217,8 +217,8 @@ export default (wss: WebSocketServer, octokit: Octokit, env: Env) => {
       try {
         const msg: unknown = JSON.parse(data.toString());
         if (
-          typeof msg === "object" && 
-          msg !== null && 
+          typeof msg === "object" &&
+          msg !== null &&
           !Array.isArray(msg) &&
           "type" in msg &&
           typeof msg.type === "string" &&
