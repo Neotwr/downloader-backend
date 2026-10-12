@@ -1,6 +1,7 @@
+import type { Request, Response } from "express";
 import { rateLimit } from "express-rate-limit";
 
-function handleRateLimitViolation(req, res) {
+function handleRateLimitViolation(req: Request, res: Response) {
   console.warn(
     `⚠️ Rate limit violado - IP: ${req.ip}, Endpoint: ${req.path}, Horário: ${new Date().toISOString()}`,
   );
@@ -11,9 +12,9 @@ function handleRateLimitViolation(req, res) {
 
 // Configuração do rate limiter
 function createLimiter(
-  max = 6,
-  message = "Muitas requisições. Tente novamente em 1 hora.",
-  windowMs = 60 * 60 * 1000,
+  max: number = 6,
+  message: string = "Muitas requisições. Tente novamente em 1 hora.",
+  windowMs: number = 60 * 60 * 1000,
 ) {
   return rateLimit({
     windowMs,
@@ -25,7 +26,7 @@ function createLimiter(
 }
 
 const triggerLimiter = createLimiter();
-const downloadLimiter = createLimiter({ max: 15 }); // Mais permissivo para downloads (15 em 1 hora)
+const downloadLimiter = createLimiter(15); // Mais permissivo para downloads (15 em 1 hora)
 
 export {
   triggerLimiter,

@@ -1,10 +1,11 @@
 // middleware
+import type { Request, Response, NextFunction } from 'express';
 import env from '../config/env.js';
 
-function verificarCORS(req, res, next) {
+function verificarCORS(req: Request, res: Response, next: NextFunction) {
   const origin = req.get('origin');
   const frontendUrl = env.FRONTEND_URL;
-  const normalizedFrontendUrl = frontendUrl ? frontendUrl.replace(/\/$/, '') : '';
+  const normalizedFrontendUrl = frontendUrl.replace(/\/$/, '');
 
   if (!origin || origin !== normalizedFrontendUrl) {
     return res.status(401).send('Acesso negado.');

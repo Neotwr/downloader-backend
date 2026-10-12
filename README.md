@@ -25,6 +25,7 @@ O backend gerencia o seguinte fluxo assíncrono:
 * **Octokit (`@octokit/rest`)** — Integração oficial com a API REST do GitHub.
 * **Helmet** & **Express Rate Limit** — Proteção de cabeçalhos e limites de requisições para mitigar sobrecargas.
 * **Crypto** — Validação segura por criptografia das assinaturas de Webhooks do GitHub.
+* **TypeScript** — Verificação estática dos tipos e compilação para JavaScript executado pelo Node.js.
 
 ---
 
@@ -36,7 +37,10 @@ backend/
 ├── middleware/           # CORS, Webhook Signature Check & Rate Limiters
 ├── routes/               # Endpoints REST (/trigger, /webhook, /artifact)
 ├── websocket/            # Gerenciador de conexões WebSocket e streams
-├── index.js              # Ponto de entrada do servidor backend
+├── types/                # Tipos compartilhados e extensões de tipos
+├── dist/                 # JavaScript compilado (gerado pela build, não versionado)
+├── index.ts              # Ponto de entrada TypeScript do servidor
+├── tsconfig.json         # Configuração do compilador TypeScript
 ├── .env.example          # Modelo de variáveis de ambiente
 └── package.json          # Dependências do servidor
 ```
@@ -67,18 +71,29 @@ WORKFLOW_PYDOWNLOAD=pip-download.yml
 ## 💻 Como Executar Localmente
 
 ### Pré-requisitos
-Certifique-se de ter o [Node.js](https://nodejs.org/) instalado em sua máquina.
+Certifique-se de ter o [Node.js](https://nodejs.org/) 20 ou superior e o npm instalados. O projeto usa ES Modules e gera JavaScript a partir dos fontes TypeScript.
 
 ### Passo a Passo
-1. Instale as dependências:
+1. Instale as dependências do projeto:
    ```bash
    npm install
    ```
-2. Inicialize o servidor de desenvolvimento:
+2. Confira os tipos sem gerar arquivos:
+   ```bash
+   npm run typecheck
+   ```
+3. Compile o TypeScript para a pasta `dist/`:
+   ```bash
+   npm run build
+   ```
+4. Inicie o servidor compilado:
    ```bash
    npm start
    ```
-O servidor estará ativo em `http://localhost:3000` (REST) e as conexões WebSocket estarão disponíveis no mesmo endereço/porta.
+
+O comando `npm start` executa `dist/index.js`; ele não compila os fontes. Sempre rode `npm run build` depois de alterar o código e antes de iniciar o servidor. A porta e as demais configurações vêm do arquivo `.env`. Com `PORT=3000`, o servidor estará ativo em `http://localhost:3000`, e as conexões WebSocket usarão o mesmo host e porta.
+
+`npm run test` ainda não executa uma suíte de testes automatizada.
 
 ---
 
@@ -101,6 +116,8 @@ Para que o backend receba os eventos do GitHub Actions e envie as URLs para o fr
 
 O backend pode ser hospedado de forma simples em serviços como **Render**, **Railway**, **Koyeb** ou em uma VPS de sua escolha:
 * Certifique-se de configurar todas as variáveis de ambiente presentes no `.env` no painel administrativo de sua plataforma de hospedagem.
+* Configure a etapa de build para instalar as dependências de desenvolvimento e executar `npm run build`. O compilador TypeScript está em `devDependencies`, então precisa estar disponível nessa etapa.
+* Configure o comando de inicialização como `npm start`. A pasta `dist/` é gerada pela build e não é versionada; a implantação deve preservar o resultado da build para a inicialização.
 * Verifique se as conexões WebSockets (`ws://` / `wss://`) não estão sendo bloqueadas por proxies ou firewalls da sua hospedagem.
 * Defina corretamente o `FRONTEND_URL` para o endereço do seu frontend a fim de permitir as requisições de CORS.
 

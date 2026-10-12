@@ -1,3 +1,16 @@
+import type { WorkflowMessage } from "../types/workflow.js";
+import type { Octokit } from "@octokit/rest";
+import type { WebSocket } from "ws";
+type Env = typeof import("../config/env.js").default;
+type WebSocketServer = import("ws").Server;
+
+type Completed = { type: "run-completed"; conclusion: string };
+type RunStatus = WorkflowMessage | Completed;
+
+interface TrackedWebSocket extends WebSocket {
+    lastSeen: number;
+}
+
 // ------------------------------------------------------------------
 // WebSocket Handler — gerencia conexões, heartbeats e notificações
 // ------------------------------------------------------------------
@@ -7,18 +20,18 @@ const HEARTBEAT_SWEEP_INTERVAL = 10_000; // varredura global a cada 10s
 const CONNECTION_STALE_TIMEOUT = 30_000; // sem heartbeat por 30s -> encerra
 const RESULT_CACHE_TTL = 5 * 60 * 1000; // resultado guardado por 5 min
 
-export default (wss, octokit, env) => {
-  const pendingRuns = new Map(); // runId -> ws (cliente aguardando)
-  const runResults = new Map(); // runId -> { payload, createdAt }
+export default (wss: WebSocketServer, octokit: Octokit, env: Env) => {
+  const pendingRuns: Map<string, TrackedWebSocket> = new Map(); // runId -> ws (cliente aguardando)
+  const runResults: Map<string, { payload: RunStatus; createdAt: number }> = new Map(); // runId -> { payload, createdAt }
 
   // ------------------------------------------------------------------
   // Cache de resultado — resolve a corrida entre /trigger e /runs/:id
   // ------------------------------------------------------------------
-  function cacheRunResult(runId, payload) {
+  function cacheRunResult(runId: string, payload: RunStatus) {
     runResults.set(String(runId), { payload, createdAt: Date.now() });
   }
 
-  function getRunResult(runId) {
+  function getRunResult(runId: string): RunStatus | undefined {
     const key = String(runId);
     const entry = runResults.get(key);
     if (!entry) return undefined;
@@ -32,7 +45,7 @@ export default (wss, octokit, env) => {
   // ------------------------------------------------------------------
   // Notificação ao cliente
   // ------------------------------------------------------------------
-  function notifyClient(runId, payload) {
+  function notifyClient(runId: string, payload: WorkflowMessage) {
     const key = String(runId);
     const ws = pendingRuns.get(key);
 
@@ -48,7 +61,7 @@ export default (wss, octokit, env) => {
   }
 
   // Indica se há cliente conectado e aguardando por esse run
-  function hasPendingRun(runId) {
+  function hasPendingRun(runId: string): boolean {
     const ws = pendingRuns.get(String(runId));
     return Boolean(ws && ws.readyState === 1);
   }
@@ -56,7 +69,7 @@ export default (wss, octokit, env) => {
   // ------------------------------------------------------------------
   // Processa um run concluído: notifica o cliente e busca o artefato
   // ------------------------------------------------------------------
-  async function processCompletedRun(runId, conclusion) {
+  async function processCompletedRun(runId: string, conclusion: string) {
     console.log(`🔔 Webhook recebido — Run ${runId} — ${conclusion}`);
 
     notifyClient(runId, {
@@ -75,6 +88,8 @@ export default (wss, octokit, env) => {
       return;
     }
 
+    const runIdNum = parseInt(runId, 10);
+
     try {
       console.log(`[Run] Buscando artefatos — Run ID: ${runId}`);
       const {
@@ -82,7 +97,7 @@ export default (wss, octokit, env) => {
       } = await octokit.actions.listWorkflowRunArtifacts({
         owner: env.OWNER,
         repo: env.REPO,
-        run_id: runId,
+        run_id: runIdNum,
       });
 
       console.log(
@@ -155,12 +170,7 @@ export default (wss, octokit, env) => {
         filename: artifact.name,
       });
     } catch (err) {
-      console.error(`[Run] Erro ao buscar artefato — Run ID: ${runId}`, {
-        name: err?.name,
-        message: err?.message,
-        status: err?.status,
-        stack: err?.stack,
-      });
+      console.error(`[Run] Erro ao buscar artefato — Run ID: ${runId}`, err);
       notifyClient(runId, {
         type: "error",
         message: "Erro ao buscar o artefato.",
@@ -171,7 +181,8 @@ export default (wss, octokit, env) => {
   // ------------------------------------------------------------------
   // Conexão de novos clientes
   // ------------------------------------------------------------------
-  wss.on("connection", (ws, req) => {
+
+  wss.on("connection", (ws: TrackedWebSocket, req) => {
     const runId = req.url?.replace("/runs/", "");
 
     // Validar se runId existe e é só números
@@ -204,8 +215,15 @@ export default (wss, octokit, env) => {
     // Heartbeat do cliente: { type: "ping" } -> { type: "pong" }
     ws.on("message", (data) => {
       try {
-        const msg = JSON.parse(data.toString());
-        if (msg.type === "ping") {
+        const msg: unknown = JSON.parse(data.toString());
+        if (
+          typeof msg === "object" && 
+          msg !== null && 
+          !Array.isArray(msg) &&
+          "type" in msg &&
+          typeof msg.type === "string" &&
+          msg.type === "ping"
+        ) {
           ws.lastSeen = Date.now();
           if (ws.readyState === 1) {
             ws.send(JSON.stringify({ type: "pong" }));
@@ -232,7 +250,6 @@ export default (wss, octokit, env) => {
   // ------------------------------------------------------------------
   setInterval(() => {
     const now = Date.now();
-
     for (const [runId, ws] of pendingRuns) {
       if (now - ws.lastSeen > CONNECTION_STALE_TIMEOUT) {
         console.log(`⏱️ Conexão sem heartbeat encerrada (run ${runId})`);
